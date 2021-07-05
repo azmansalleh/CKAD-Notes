@@ -43,8 +43,9 @@ The list below is based on the curriculum v1.0. Once you have mastered a section
 
 The core concepts section covers the core K8s API and its primitives and resources. It also covers the important concept of a POD. This is the basic unit of deployment for app developers and so this 'POD' concept is important to understand as well as how they are managed with kubectl. To me, this is embodied in the kubectl RUN command.
 
-### Using the RUN/CREATE command for Pods, Deployments, etc.
-The `run` command allows quick creation of the various high-level execution resources in k8s, and provides speed, which we need for the exam.
+### 1.1. Pods
+
+A Pod (as in a pod of whales or pea pod) is a group of one or more containers, with shared storage and network resources, and a specification for how to run the containers. A Pod's contents are always co-located and co-scheduled, and run in a shared context. 
 
 |     Kind      |    Version    |
 | ------------- | ------------- |
@@ -53,7 +54,85 @@ The `run` command allows quick creation of the various high-level execution reso
 | ReplicaSet    | apps/v1       |
 | Deployment    | apps/v1       |
 
+#### 1.1.1 Pod Definition
 
+A sample `.yaml` file of pod definition file. The fields required are apiVersion, kind, metadata and spec. Refer to [pod_definition.yaml](1.core-concepts/pod_definition.yaml)
 
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+  labels:
+    app: myapp
+    type: frontend
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx
+```
 
+#### 1.1.2 Pod Information and Commands
+
+Below are simple commands to retrieve pod information. We can either retrieve all of the pod information or a specific detailed pod information
+
+```
+$ kubectl get pods
+
+NAME                            READY   STATUS    RESTARTS   AGE
+myapp-pod-798bbc95c7-62cc7      1/1     Running   0          15d
+mydb-pod-987478c7-2lpzq         1/1     Running   0          5d1h
+```
+```
+$ kubectl describe pod myapp-pod
+
+Name:         myapp-pod
+Namespace:    default
+Priority:     0
+Node:         ip-192-168-123-123.ap-southeast-1.compute.internal/192.168.123.123
+Start Time:   Mon, 01 Jun 2021 23:59:59 +0800
+
+.....
+```
+
+If you are not given a pod definition file, you may extract the definition to a file using the below command:
+```
+$ kubectl get pod myapp-pod -o yaml > pod-definition-sample.yaml
+```
+
+If you wish to edit the pod directly to change the configuration, you may use the following command
+```
+kubectl edit pod <pod-name>
+```
+
+### 1.2. ReplicaSet
+
+A ReplicaSet's purpose is to maintain a stable set of replica Pods running at any given time. As such, it is often used to guarantee the availability of a specified number of identical Pods.
+
+#### 1.2.1  ReplicaController Definition
+
+A sample `.yaml` file of a replicaSet definition file. The fields required are apiVersion, kind, metadata, spec and replicas Refer to [pod_definition.yaml](1.core-concepts/replication_controller_definition.yaml)
+
+```
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: myapp-pod
+  labels:
+    app: myapp
+    type: frontend
+spec:
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        app: myapp
+        type: frontend
+      spec:
+        containers:
+        - name: nginx-container
+          image: nginx
+  replicas: 3
+
+```
 
