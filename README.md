@@ -56,7 +56,7 @@ A Pod (as in a pod of whales or pea pod) is a group of one or more containers, w
 
 #### 1.1.1 Pod Definition
 
-A sample `.yaml` file of pod definition file. The fields required are apiVersion, kind, metadata and spec. Refer to [pod_definition.yaml](1.core-concepts/pod_definition.yaml)
+A sample `.yaml` file of pod definition file. The fields required are apiVersion, kind, metadata and spec. Refer to [pod_definition.yaml]("1.%20Core-Concepts/pod_definition.yaml")
 
 ```
 apiVersion: v1
@@ -111,13 +111,13 @@ A ReplicaSet's purpose is to maintain a stable set of replica Pods running at an
 
 #### 1.2.1  ReplicaController Definition
 
-A sample `.yaml` file of a replicaSet definition file. The fields required are apiVersion, kind, metadata, spec and replicas Refer to [pod_definition.yaml](1.core-concepts/replication_controller_definition.yaml)
+A sample `.yaml` file of a replicaSet definition file. The fields required are apiVersion, kind, metadata, spec and replicas Refer to [replicacontroller_definition.yaml]("1.%20Core-Concepts/replicacontroller_definition.yaml")
 
 ```
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: myapp-pod
+  name: myapp-rc
   labels:
     app: myapp
     type: frontend
@@ -136,3 +136,58 @@ spec:
 
 ```
 
+Basic Commands to retrieve information on replica controller
+```
+$ kubectl create -f rc-definition.yaml
+$ kubectl get replicacontroller
+```
+
+#### 1.2.2  ReplicaSet Definition
+
+A sample `.yaml` file of a replicaSet definition file. The fields required are apiVersion, kind, metadata, spec, selector and replicas. Refer to [replicaset_definition.yaml]("1.%20Core-Concepts/replicaset_definition.yaml")
+
+```
+apiVersion: v1
+kind: ReplicationSet
+metadata:
+  name: myapp-replicaset
+  labels:
+    app: myapp
+    type: frontend
+spec:
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        app: myapp
+        type: frontend
+      spec:
+        containers:
+        - name: nginx-container
+          image: nginx
+  replicas: 3
+  selector: 
+    matchLabels:
+      type: frontend
+```
+<br>
+<p align="center">
+  <img src="images/replicaset.png" width="50%">
+</p>
+<br>
+
+Basic Commands to retrieve information on replica controller
+```
+$ kubectl create -f replicaset-definition.yaml
+$ kubectl delete replicaset myapp-replicaset
+$ kubectl get replicaset
+```
+
+We can also update the amount of replicas by scaling in or out with the following command
+```
+$ kubectl replace -f replicaset-definition.yaml
+
+OR
+
+$ kubectl scale --replicas=6 -f replicaset myapp-replicaset
+```
