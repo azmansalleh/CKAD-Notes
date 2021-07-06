@@ -10,9 +10,9 @@ Version 1.21
 ## Current Progress
 The list below is based on the curriculum v1.0. Once you have mastered a section, check it off and move on to the next. You need to understand them ALL very well. The Core Concepts piece is kind of vague, but the others are defined well enough that it is easy to prepare for with a hands-on work through the tasks offered at kubernetes.io. The rest of this document follows this same outline of curriculum.
 
-- [ ] __Core Concepts - 13%__
-  - [ ] API Primitives
-  - [ ] Create and Configure Basic Pods
+- [x] __Core Concepts - 13%__
+  - [x] API Primitives
+  - [x] Create and Configure Basic Pods
 - [ ] __Configuration - 18%__
   - [ ] Understand ConfigMaps
   - [ ] Understand SecurityContexts
