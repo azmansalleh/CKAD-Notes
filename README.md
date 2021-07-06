@@ -148,7 +148,7 @@ A sample `.yaml` file of a replicaSet definition file. The fields required are a
 
 ```
 apiVersion: v1
-kind: ReplicationSet
+kind: ReplicaSet
 metadata:
   name: myapp-replicaset
   labels:
@@ -190,4 +190,217 @@ $ kubectl replace -f replicaset-definition.yaml
 OR
 
 $ kubectl scale --replicas=6 -f replicaset myapp-replicaset
+```
+
+### 1.3 Deployment
+
+A Deployment provides declarative updates for Pods and ReplicaSets.
+
+You describe a desired state in a Deployment, and the Deployment Controller changes the actual state to the desired state at a controlled rate. You can define Deployments to create new ReplicaSets, or to remove existing Deployments and adopt all their resources with new Deployments.
+
+<br>
+<p align="center">
+  <img src="images/deployment.png" width="80%">
+</p>
+<br>
+
+#### 1.3.1  Deployment Definition
+
+A sample `.yaml` file of a deployment definition file. The fields required are apiVersion, kind, metadata, spec, selector and replicas Refer to [deployment_definition.yaml]("1.%20Core-Concepts/deployment_definition.yaml")
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-deployment
+  labels:
+    app: myapp
+    type: frontend
+spec:
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        app: myapp
+        type: frontend
+      spec:
+        containers:
+        - name: nginx-container
+          image: nginx
+  replicas: 3
+  selector: 
+    matchLabels:
+      type: frontend
+```
+
+Basic Commands to retrieve information on a deployment
+```
+$ kubectl create -f deployment-definition.yaml
+$ kubectl delete deployment myapp-deployment
+$ kubectl get deployments
+```
+
+
+Get all commands allows us to retrive every single deployed info such as replicaset, deployments and pods
+```
+$ kubectl get all
+
+NAME                            DESIRED   CURRENT    UP-TO_DATE   AVAILABLE   AGE
+deploy/myapp-deployement        3         3          3            3           9h
+
+NAME                            DESIRED   CURRENT    READY   AGE
+rs/myapp-deployement-1234567    3         3          3       3
+
+NAME                               READY   STATUS    RESTARTS   AGE
+po/myapp-deployement-1234567-abc   1/1     Running   0          9h
+po/myapp-deployement-1234567-def   1/1     Running   0          9h
+po/myapp-deployement-1234567-hij   1/1     Running   0          9h
+```
+
+### 1.4 Namespaces
+
+Kubernetes supports multiple virtual clusters backed by the same physical cluster. These virtual clusters are called namespaces. Namespaces provide a scope for names. Names of resources need to be unique within a namespace, but not across namespaces. Namespaces cannot be nested inside one another and each Kubernetes resource can only be in one namespace. Namespaces are a way to divide cluster resources between multiple users.
+
+#### 1.4.1  Namespace Endpoints
+
+<br>
+<p align="center">
+  <img src="images/namespace.png" width="80%">
+</p>
+<br>
+
+Resources within a namespace can be referred via the namespace. In the default namesace we can connect to the db-service by using the endpoint
+
+```
+db-service
+```
+
+However, we can specify an endpoint within a namespace by using the following `service endpoint` instead. A DNS entry is added in this format when a namespace is added.
+```
+db-service.dev.svc.cluster.local
+```
+
+#### 1.4.2  Namespace Commands
+
+Retrieve all pods within a specific namespace
+
+```
+$ kubectl get pods --namespace=dev
+```
+Create a pod within a specific namespace
+
+```
+$ kubectl create -f pod-definition.yaml --namespace=dev
+```
+
+In addition, we can specify the `namespace` within a definition file metadata. This limits the creation of the pod for example within the dev namespace as shown below:
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+  namespace: dev
+  labels:
+    app: myapp
+    type: frontend
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx
+```
+
+Creating a namespace definition file with the follwing commands:
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+```
+
+```
+$ kubectl create -f namespace-dev.yaml
+```
+
+OR
+
+```
+$ kubectl create namespace dev
+```
+
+For easier access when running commands in a specific namespace, we can set the namespace permenently by running the following command:
+```
+$ kubectl config set-context $(kubectl config current-context) --namespace=dev
+```
+
+View all pods in all namespace
+```
+$ kubectl get pods --all-namespaces
+```
+
+#### 1.4.3  Resource Quota
+A resource quota, defined by a ResourceQuota object, provides constraints that limit aggregate resource consumption per namespace. It can limit the quantity of objects that can be created in a namespace by type, as well as the total amount of compute resources that may be consumed by resources in that namespace.
+
+<br>
+<p align="center">
+  <img src="images/resourcequota.png" width="80%">
+</p>
+<br>
+
+```
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: dev
+spec:
+  hard:
+    pods: "10"
+    requests.cpu: "4"
+    requests.memory: 5Gi
+    limits.cpu: "10"
+    limits.memory: 10Gi
+```
+
+```
+$ kubectl create -f compute-quota.yaml
+```
+
+### 1.5 Imperative Commands
+
+Imperative commands can help in getting one time tasks done quickly, as well as generate a definition template easily.
+
+#### 1.5.1  Dry Run
+By default as soon as the command is run, the resource will be created. Dry run will not create the resource, instead, tell you whether the resource can be created and if your command is right.
+```
+--dry-run=client
+```
+#### 1.5.2 Output
+This will output the resource definition in YAML format on the screen.
+```
+-o yaml
+```
+
+#### 1.5.3 Pod
+```
+$ kubectl run nginx --image=nginx
+$ kubectl run nginx --image=nginx --dry-run=client -o yaml
+```
+
+#### 1.5.4 Deployment
+```
+$ kubectl create deployment --image=nginx nginx
+$ kubectl create deployment --image=nginx nginx --dry-run=client -o yaml
+```
+#### 1.5.5 Replicas
+```
+$ kubectl create deployment nginx --image=nginx --replicas=4
+$ kubectl scale deployment nginx --replicas=4
+$ kubectl create deployment nginx --image=nginx--dry-run=client -o yaml > nginx-deployment.yaml
+```
+
+#### 1.5.6 Service
+```
+$ kubectl expose pod redis --port=6379 --name redis-service --dry-run=client -o yaml
 ```
