@@ -404,3 +404,175 @@ $ kubectl create deployment nginx --image=nginx--dry-run=client -o yaml > nginx-
 ```
 $ kubectl expose pod redis --port=6379 --name redis-service --dry-run=client -o yaml
 ```
+
+## 2. Configuration
+
+Configuration covers how run-time 'config' data is provided to your applications running in k8s. This includes environment variables, config maps, secrets, etc. Other items that are pertinent to config are the service account and security contexts used to execute the containers. The below items are covered by this part of the curriculum.
+
+### 2.1 Environment Variables
+
+When you create a Pod, you can set environment variables for the containers that run in the Pod. To set environment variables, include the env or envFrom field in the configuration file. 
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: envar-demo
+  labels:
+    purpose: demonstrate-envars
+spec:
+  containers:
+  - name: envar-demo-container
+    image: gcr.io/google-samples/node-hello:1.0
+    env:
+    - name: GREETING
+      value: "Warm greetings to"
+    - name: HONORIFIC
+      value: "The Most Honorable"
+    - name: NAME
+      value: "Kubernetes"
+    command: ["echo"]
+    args: ["$(GREETING) $(HONORIFIC) $(NAME)"]
+```
+
+Environment variables that you define in a Pod's configuration can be used elsewhere in the configuration, for example in commands and arguments that you set for the Pod's containers. In the example configuration below, the GREETING, HONORIFIC, and NAME environment variables are set to Warm greetings to, The Most Honorable, and Kubernetes, respectively. Those environment variables are then used in the CLI arguments passed to the env-print-demo container.
+
+### 2.2 ConfigmMaps
+A ConfigMap is an API object used to store non-confidential data in key-value pairs. Pods can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a volume.
+
+A ConfigMap allows you to decouple environment-specific configuration from your container images, so that your applications are easily portable.
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: configmap-demo-pod
+spec:
+  containers:
+    - name: demo
+      image: alpine
+      command: ["sleep", "3600"]
+      env:
+        - name: PLAYER_INITIAL_LIVES
+          valueFrom:
+            configMapKeyRef:
+              name: game-demo 
+              key: player_initial_lives 
+        - name: UI_PROPERTIES_FILE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: game-demo
+              key: ui_properties_file_name
+```
+
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-demo
+data:
+  player_initial_lives: 5
+  ui_properties_file_name: test
+```
+
+### 2.3 Secrets
+A Secret is an object that contains a small amount of sensitive data such as a password, a token, or a key. Such information might otherwise be put in a Pod specification or in an image. Users can create Secrets and the system also creates some Secrets.
+
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-sa-sample
+  annotations:
+    kubernetes.io/service-account.name: "sa-name"
+type: kubernetes.io/service-account-token
+data:
+  extra: YmFyCg==
+```
+
+### 2.4 Security Contexts
+A security context defines privilege and access control settings for a Pod or Container Security contexts includes access control, privilleges and linux capibilities
+
+Running at Pod level
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+spec: 
+  securityContext:
+    runAsUser: 1000
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["sleep", "3600"]
+```
+
+Running at Container level (Capabitilies field is only supported at container level)
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+spec: 
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["sleep", "3600"]
+      securityContext:
+        runAsUser: 1000
+        capabilities:
+          add: ["MAC_ADMIN"]
+```
+
+### 2.5 Service Account
+A service account provides an identity for processes that run in a Pod. When you (a human) access the cluster (for example, using kubectl), you are authenticated by the apiserver as a particular User Account (currently this is usually admin, unless your cluster administrator has customized your cluster). Processes in containers inside pods can also contact the apiserver. When they do, they are authenticated as a particular Service Account (for example, default).
+
+#### 2.5.1 Creating a Service account
+```
+$ kubect create serviceaccount dashboard-sa
+$ kubect get serviceaccount 
+$ kubect describe serviceaccount dashboard-sa
+
+
+Name:                  dashboard-sa
+Namespace:             default
+Labels:                <none>
+Annotations:           <none>
+Image pull secrets:    <none>
+Mountable secrets:     dashbaord-sa-token-kbbdm
+Tokens:                dashbaord-sa-token-kbbdm
+Events:                <none>
+```
+
+As seen in the mountable and image pull secrets, a hashed token is stored to be used to authenticate within the cluster. 
+
+<br>
+<p align="center">
+  <img src="images/service-account-token.png" width="30%">
+</p>
+<br>
+
+#### 2.5.2 Viewing the service account token
+```
+$ kubectl describe secret dashboard-sa-token-kbbdm
+```
+
+Curl to the Kubernetes cluster API
+```
+curl <CLUSTER_ENDPOINT>/api -insecure --header "Authorisation: Bearer <TOKEN>"
+```
+
+#### 2.5.3 Using the Service account token in a deployment file
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-kube-dashboard
+spec: 
+  containers:
+    - name: my-kube-dashboard
+      image: my-kube-dashboard
+      serviceAccountName: dashboard-sa
+```
+**Kubernetes auto mounts the default service account within each namespace**
