@@ -409,7 +409,7 @@ $ kubectl expose pod redis --port=6379 --name redis-service --dry-run=client -o 
 
 Configuration covers how run-time 'config' data is provided to your applications running in k8s. This includes environment variables, config maps, secrets, etc. Other items that are pertinent to config are the service account and security contexts used to execute the containers. The below items are covered by this part of the curriculum.
 
-### 2.1 Environment Variables
+### 2.1. Environment Variables
 
 When you create a Pod, you can set environment variables for the containers that run in the Pod. To set environment variables, include the env or envFrom field in the configuration file. 
 
@@ -437,7 +437,7 @@ spec:
 
 Environment variables that you define in a Pod's configuration can be used elsewhere in the configuration, for example in commands and arguments that you set for the Pod's containers. In the example configuration below, the GREETING, HONORIFIC, and NAME environment variables are set to Warm greetings to, The Most Honorable, and Kubernetes, respectively. Those environment variables are then used in the CLI arguments passed to the env-print-demo container.
 
-### 2.2 ConfigmMaps
+### 2.2. ConfigmMaps
 A ConfigMap is an API object used to store non-confidential data in key-value pairs. Pods can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a volume.
 
 A ConfigMap allows you to decouple environment-specific configuration from your container images, so that your applications are easily portable.
@@ -475,7 +475,7 @@ data:
   ui_properties_file_name: test
 ```
 
-### 2.3 Secrets
+### 2.3. Secrets
 A Secret is an object that contains a small amount of sensitive data such as a password, a token, or a key. Such information might otherwise be put in a Pod specification or in an image. Users can create Secrets and the system also creates some Secrets.
 
 ```
@@ -490,7 +490,7 @@ data:
   extra: YmFyCg==
 ```
 
-### 2.4 Security Contexts
+### 2.4. Security Contexts
 A security context defines privilege and access control settings for a Pod or Container Security contexts includes access control, privilleges and linux capibilities
 
 Running at Pod level
@@ -525,10 +525,10 @@ spec:
           add: ["MAC_ADMIN"]
 ```
 
-### 2.5 Service Account
+### 2.5. Service Account
 A service account provides an identity for processes that run in a Pod. When you (a human) access the cluster (for example, using kubectl), you are authenticated by the apiserver as a particular User Account (currently this is usually admin, unless your cluster administrator has customized your cluster). Processes in containers inside pods can also contact the apiserver. When they do, they are authenticated as a particular Service Account (for example, default).
 
-#### 2.5.1 Creating a Service account
+#### 2.5.1. Creating a Service account
 ```
 $ kubect create serviceaccount dashboard-sa
 $ kubect get serviceaccount 
@@ -553,7 +553,7 @@ As seen in the mountable and image pull secrets, a hashed token is stored to be 
 </p>
 <br>
 
-#### 2.5.2 Viewing the service account token
+#### 2.5.2. Viewing the service account token
 ```
 $ kubectl describe secret dashboard-sa-token-kbbdm
 ```
@@ -563,7 +563,7 @@ Curl to the Kubernetes cluster API
 curl <CLUSTER_ENDPOINT>/api -insecure --header "Authorisation: Bearer <TOKEN>"
 ```
 
-#### 2.5.3 Using the Service account token in a deployment file
+#### 2.5.3. Using the Service account token in a deployment file
 ```
 apiVersion: v1
 kind: Pod
@@ -576,3 +576,124 @@ spec:
       serviceAccountName: dashboard-sa
 ```
 **Kubernetes auto mounts the default service account within each namespace**
+
+### 2.6. Resource Requirements
+When you specify a Pod, you can optionally specify how much of each resource a Container needs. The most common resources to specify are CPU and memory (RAM); there are others.
+
+When you specify the resource request for Containers in a Pod, the scheduler uses this information to decide which node to place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so that the running container is not allowed to use more of that resource than the limit you set. The kubelet also reserves at least the request amount of that system resource specifically for that container to use.
+
+<br>
+<p align="center">
+  <img src="images/resource-request.png" width="30%">
+</p>
+<br>
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+  labels:
+    name: simple-webapp-color
+spec: 
+  containers:
+    - name: simple-webapp-color
+      image: simple-webapp-color
+      ports:
+        - containerPort: 8080
+      resources:
+        requests:   
+          memory: "1Gi"
+          cpu: 1
+```
+
+### 2.6.1. CPU Resource 
+Can specify value as low as 0.1 (100m), can go lowest to 1m.
+
+1 CPU = 1 AW vCPU, 1 GCP Core, 1 Azure Core, 1 Hyperthread
+
+### 2.6.2. Memory Resource 
+Can specify value by default as 256Mi (268435456)
+
+G (Gigabyte), M (Megabyte), K (Kiloyte), Gi (Gibibyte)
+
+### 2.6.3. Resource Limits
+We can specify a max treshold for the amount of resources the pod is able to take in by setting a limit in the pod definition. If it exceeds the CPU or memory the pod will throttle whereas it will terminate the pod when exceeding the memory usage.
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+  labels:
+    name: simple-webapp-color
+spec: 
+  containers:
+    - name: simple-webapp-color
+      image: simple-webapp-color
+      ports:
+        - containerPort: 8080
+      resources:
+        requests:   
+          memory: "1Gi"
+          cpu: 1
+        limits:
+          memory: "2Gi"
+          cpu: 2
+```
+### 2.7. Taints and Tolerations
+Node affinity is a property of Pods that attracts them to a set of nodes (either as a preference or a hard requirement). Taints are the opposite -- they allow a node to repel a set of pods.
+
+Tolerations are applied to pods, and allow (but do not require) the pods to schedule onto nodes with matching taints.
+
+Taints and tolerations work together to ensure that pods are not scheduled onto inappropriate nodes. One or more taints are applied to a node; this marks that the node should not accept any pods that do not tolerate the taints. Master node is tainted by default
+
+#### 2.7.1. Taints - Node
+```
+$ kubectl taint nodes node-name key=value:taint-effect (NoSchedule/PreferNoSchedule/NoExecute)
+
+// Example
+$ kubectl taint nodes node1 app=blue:NoSchedule
+```
+
+#### 2.7.2. Tolerations - Pods
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+spec:
+  containers:
+  - name: nginx-controller
+    image: nginx
+  tolerations:
+  - key: "app"
+    operator: "Equal"
+    value: blue
+    effect: NoSchedule
+```
+
+### 2.8. Node Selectors
+*nodeSelector* is the simplest recommended form of node selection constraint. nodeSelector is a field of PodSpec. It specifies a map of key-value pairs. For the pod to be eligible to run on a node, the node must have each of the indicated key-value pairs as labels (it can have additional labels as well). The most common usage is one key-value pair.
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+spec:
+  containers:
+  - name: data-processor
+    image: data-processor
+  nodeSelector:
+    size: large
+```
+
+In order for the pod to idenfity the node, we need to label the node with a key value pair
+
+```
+$ kubectl label nodes <node-name> <label-key>=<label-value>
+
+// Example
+kubectl label nodes node-1 size=Large
+```
