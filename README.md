@@ -697,3 +697,45 @@ $ kubectl label nodes <node-name> <label-key>=<label-value>
 // Example
 kubectl label nodes node-1 size=Large
 ```
+
+### 2.8. Node Affinity
+*nodeAffinity* is conceptually similar to nodeSelector -- it allows you to constrain which nodes your pod is eligible to be scheduled on, based on labels on the node.
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+spec:
+  containers:
+  - name: data-processor
+    image: data-processor
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: size
+            operator: In
+            values:
+            - Large
+```
+
+#### 2.8.1. Node Affinity Types
+
+```
+AVAILABLE
+
+- requiredDuringSchedulingIgnoredDuringExecution
+- preferredDuringSchedulingIgnoredDuringExecution
+
+PLANNED
+
+- requiredDuringSchedulingRequiredDuringExecution
+```
+
+| Type        | DuringScheduling     | DuringExecution |
+| ----------  | -----------          | -----------     |
+| Type 1      | Required             | Ignored         |
+| Type 2      | Preferred            | Ignored         |
+| Type 3      | Required             | Required         |
