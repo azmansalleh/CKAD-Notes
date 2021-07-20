@@ -13,13 +13,13 @@ The list below is based on the curriculum v1.0. Once you have mastered a section
 - [x] __Core Concepts - 13%__
   - [x] API Primitives
   - [x] Create and Configure Basic Pods
-- [ ] __Configuration - 18%__
-  - [ ] Understand ConfigMaps
-  - [ ] Understand SecurityContexts
-  - [ ] Define App Resource Requirements
-  - [ ] Create and Consume Secrets
-  - [ ] Understand Service Accounts
-- [ ] __Multi-Container Pods - 10%__
+- [x] __Configuration - 18%__
+  - [x] Understand ConfigMaps
+  - [x] Understand SecurityContexts
+  - [x] Define App Resource Requirements
+  - [x] Create and Consume Secrets
+  - [x] Understand Service Accounts
+- [x] __Multi-Container Pods - 10%__
   - [ ] Design Patterns: Ambassador, Adapter, Sidecar
     - [ ] - Sidecar Pattern
     - [ ] - Init Containers
@@ -738,4 +738,59 @@ PLANNED
 | ----------  | -----------          | -----------     |
 | Type 1      | Required             | Ignored         |
 | Type 2      | Preferred            | Ignored         |
-| Type 3      | Required             | Required         |
+| Type 3      | Required             | Required        |
+
+## 3. Multi Container Pods
+
+The primary reason that Pods can have multiple containers is to support helper applications that assist a primary application. Typical examples of helper applications are data pullers, data pushers, and proxies. Helper and primary applications often need to communicate with each other. Typically this is done through a shared filesystem, as shown in this exercise, or through the loopback network interface, localhost.
+
+<br>
+<p align="center">
+  <img src="images/multi-container-pod.png" width="50%">
+</p>
+<br>
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+  - name: log-agent
+    image: log-agent
+```
+
+### 3.1 Sidecar Pattern
+
+Often used for logging agent alongside a web agent and forward to a log server
+
+<br>
+<p align="center">
+  <img src="images/sidecar.png" width="50%">
+</p>
+<br>
+
+### 3.2 Adapter Pattern
+
+Before sending logs to a central log server, the logs are converted into a common format. Logs are processed first before sending
+
+<br>
+<p align="center">
+  <img src="images/adapter.png" width="50%">
+</p>
+<br>
+
+### 3.3 Ambassador Pattern
+
+Communicating to different env by modifying the endpoint or add a proxy
+
+<br>
+<p align="center">
+  <img src="images/ambassador.png" width="50%">
+</p>
+<br>
