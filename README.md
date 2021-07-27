@@ -794,3 +794,165 @@ Communicating to different env by modifying the endpoint or add a proxy
   <img src="images/ambassador.png" width="50%">
 </p>
 <br>
+
+## 4. Observability
+
+Since containers are ephemeral and transient, monitoring, security, and data protection are fundamentally different from their counterparts in virtualized or bare metal applications. Optimizing the tooling that supports a Kubernetes deployment is not a trivial task.
+
+### 4.1. Readiness and Liveness Probe
+
+Pods follow a defined lifecycle, starting in the Pending phase, moving through Running if at least one of its primary containers starts OK, and then through either the Succeeded or Failed phases depending on whether any container in the Pod terminated in failure.
+
+#### 4.1.1 Pod Status
+A Pod's status field is a PodStatus object, which has a phase field.
+
+The phase of a Pod is a simple, high-level summary of where the Pod is in its lifecycle. The phase is not intended to be a comprehensive rollup of observations of container or Pod state, nor is it intended to be a comprehensive state machine.
+
+| Value        | Description
+| ----------   | ----------- |
+| Pending      | The Pod has been accepted by the Kubernetes cluster, but one or more of the containers has not been set up and made ready to run. This includes time a Pod spends waiting to be scheduled as well as the time spent downloading container images over the network.           |
+| Running      | The Pod has been bound to a node, and all of the containers have been created. At least one container is still running, or is in the process of starting or restarting. |
+| Suceeded     | All containers in the Pod have terminated in success, and will not be restarted. |
+| Failed       | All containers in the Pod have terminated, and at least one container has terminated in failure. That is, the container either exited with non-zero status or was terminated by the system. |
+| Unknown       | For some reason the state of the Pod could not be obtained. This phase typically occurs due to an error in communicating with the node where the Pod should be running.|
+
+#### 4.1.2 Pod conditions 
+A Pod has a PodStatus, which has an array of PodConditions through which the Pod has or has not passed:
+
+`PodScheduled`: the Pod has been scheduled to a node. <br>
+`ContainersReady`: all containers in the Pod are ready. <br>
+`Initialized`: all init containers have started successfully. <br>
+`Ready`: the Pod is able to serve requests and should be added to the load balancing pools of all matching Services. <br>
+
+| Field name	 | Description
+| ----------   | ----------- |
+| type         | Name of this Pod condition. |
+| status       | Indicates whether that condition is applicable, with possible values "True", "False", or "Unknown".|
+| lastProbeTime     | Timestamp of when the Pod condition was last probed. |
+| lastTransitionTime       | Timestamp for when the Pod last transitioned from one status to another.|
+| reason       | Machine-readable, UpperCamelCase text indicating the reason for the condition's last transition.|
+| message       | Human-readable message indicating details about the last status transition.|
+
+### 4.2. Readiness Probes
+`HTTP Probes`: HTTP Test - api/ready <br>
+`TCP Test`: Port 3306 <br>
+`Exec Command`: Run custom script <br>
+
+### 4.2.1. HTTP probes 
+For an HTTP probe, the kubelet sends an HTTP request to the specified path and port to perform the check. The kubelet sends the probe to the pod's IP address, unless the address is overridden by the optional host field in httpGet. If scheme field is set to HTTPS, the kubelet sends an HTTPS request skipping the certificate verification.
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels: 
+    name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+    readinessProbe:
+      httpGet:
+        path: /api/ready
+        port: 8080
+```
+### 4.2.2. TCP Test
+For a TCP probe, the kubelet makes the probe connection at the node, not in the pod, which means that you can not use a service name in the host parameter since the kubelet is unable to resolve it.
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels: 
+    name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+    readinessProbe:
+      tcpSocket:
+        port: 3306
+```
+### 4.2.3. Exec Command
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels: 
+    name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+    readinessProbe:
+      exec:
+        command: 
+          - cat
+          - /app/is_ready
+```
+### 4.2.3. Prob Options Commands
+```
+readinessProbe:
+  httpGet:
+    path: /api/ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+```
+
+### 4.3. Liveness Probes
+Many applications running for long periods of time eventually transition to broken states, and cannot recover except by being restarted. Kubernetes provides liveness probes to detect and remedy such situations.
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels: 
+    name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+    livenessProbe:
+      httpGet:
+        path: /api/health
+        port: 8080
+```
+
+### 4.4. Container Logging
+Application logs can help you understand what is happening inside your application. The logs are particularly useful for debugging problems and monitoring cluster activity. Most modern applications have some kind of logging mechanism. Likewise, container engines are designed to support logging. The easiest and most adopted logging method for containerized applications is writing to standard output and standard error streams.
+```
+$ kubectl logs -f event-simulator-pod
+$ kubectl logs -f event-simulator-pod container-name
+```
+
+### 4.5. Monitor And Debug Applications
+Metrics Server is a cluster-wide aggregator of resource usage data. By default, it is deployed in clusters created by kube-up.sh script as a Deployment object. If you use a different Kubernetes setup mechanism, you can deploy it using the provided deployment components.yaml file.
+
+Metrics Server collects metrics from the Summary API, exposed by Kubelet on each node, and is registered with the main API server via Kubernetes aggregator.
+
+<br>
+<p align="center">
+  <img src="images/metrics-server.png" width="50%">
+</p>
+<br>
+
+```
+$ minikube addons enable metrics-server (Minikube)
+$ git clone https://github.com/kubernetes-incubator/metrics-server
+
+// Create and view metrics
+$ kubectl create -f deploy/1.8+/
+$ kubectl top node
+$ kubectl top pod
+```
