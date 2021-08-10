@@ -20,14 +20,14 @@ The list below is based on the curriculum v1.0. Once you have mastered a section
   - [x] Create and Consume Secrets
   - [x] Understand Service Accounts
 - [x] __Multi-Container Pods - 10%__
-  - [ ] Design Patterns: Ambassador, Adapter, Sidecar
-    - [ ] - Sidecar Pattern
-    - [ ] - Init Containers
-- [ ] __Pod Design - 20%__
-  - [ ] Using Labels, Selectors, and Annotations
-  - [ ] Understand Deployments and Rolling Updates
-  - [ ] Understand Deployment Rollbacks
-  - [ ] Understand Jobs and CronJobs
+  - [x] Design Patterns: Ambassador, Adapter, Sidecar
+    - [x] - Sidecar Pattern
+    - [x] - Init Containers
+- [x] __Pod Design - 20%__
+  - [x] Using Labels, Selectors, and Annotations
+  - [x] Understand Deployments and Rolling Updates
+  - [x] Understand Deployment Rollbacks
+  - [x] Understand Jobs and CronJobs
 - [ ] - __State Persistence - 8%__
   - [ ] - Understand PVCs for Storage
 - [ ] __Observability - 18%__
@@ -955,4 +955,313 @@ $ git clone https://github.com/kubernetes-incubator/metrics-server
 $ kubectl create -f deploy/1.8+/
 $ kubectl top node
 $ kubectl top pod
+```
+
+## 5. Pod Design
+
+Pods are designed to support multiple cooperating processes (as containers) that form a cohesive unit of service. The containers in a Pod are automatically co-located and co-scheduled on the same physical or virtual machine in the cluster. The containers can share resources and dependencies, communicate with one another, and coordinate when and how they are terminated.
+
+### 5.1. Labels, Selectors and Annotations
+
+Labels are key/value pairs that are attached to objects, such as pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects. Labels can be attached to objects at creation time and subsequently added and modified at any time.
+
+A label selector can be made of multiple requirements which are comma-separated. In the case of multiple requirements, all must be satisfied so the comma separator acts as a logical AND (&&) operator. Often used to filter objects with labels attached
+
+#### 5.1.1 Labels
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels:
+    app: App1
+    function: Frontend
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports;
+      - containerPort: 8080
+
+$ kubectl get pods --selector app=App1
+```
+
+#### 5.1.2 Labels (RepliaceSet/Service)
+```
+apiVersion: v1
+kind: ReplicaSet
+metadata:
+  name: simple-webapp
+  labels:
+    app: App1
+    function: Frontend
+  annotations:
+    buildVersion: 1.34
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: App1
+  template:
+    metadata:
+      labels: App1
+      function: Front-end
+  spec:
+    containers:
+    - name: simple-webapp
+      image: simple-webapp
+      ports;
+        - containerPort: 8080
+```
+### 5.2. Rolling Updates and Rollbacks in Deployments
+
+A rollout is a new deployment revision to the cluter. There are 2 deployement strategy namely 
+
+`RollingUpdate`: This is the default update strategy.
+With RollingUpdate update strategy, after you update a DaemonSet template, old DaemonSet pods will be killed, and new DaemonSet pods will be created automatically, in a controlled fashion. At most one pod of the DaemonSet will be running on each node during the whole update process.
+
+`Recreate`: Terminate the old version and release the new one
+
+```
+$ kubectl rollout status deployment/myapp-deployment
+$ kubectl rollout history deployment/myapp-deployment
+$ kubectl rollout undo deployment/myapp-deployment
+```
+
+```
+$ kubectl apply -f deployment-definition.yml
+OR
+$ kubectl set image deployment/myapp-deployment nginx=nginx:1.9.1
+```
+
+### 5.3. Jobs and CronJobs
+
+A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the task (ie, Job) is complete. Deleting a Job will clean up the Pods it created. Suspending a Job will delete its active Pods until the Job is resumed again.
+
+A simple case is to create one Job object in order to reliably run one Pod to completion. The Job object will start a new Pod if the first Pod fails or is deleted (for example due to a node hardware failure or a node reboot).
+
+You can also use a Job to run multiple Pods in parallel.
+
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: math-add-job
+spec:
+  completions: 3
+  parallelism: 3
+  template:
+    spec:
+      containers:
+        - name: math-add
+          image: ubuntu
+          command: ['expr', '3', '+', '2']
+      restartPolicy: Never
+```
+
+```
+$ kubectl create -f job-definition.yaml
+$ kubectl get jobs
+$ kubectl get pods
+$ kubectl logs math-add-job-ld87pn
+$ kubectl delete job math-add-job
+```
+
+```
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: reporting-cron-job
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate: 
+  spec:
+    completions: 3
+    parallelism: 3
+    template:
+      spec:
+        containers:
+          - name: math-add
+            image: ubuntu
+            command: ['expr', '3', '+', '2']
+        restartPolicy: Never
+```
+
+```
+$ kubectl create -f cron-job-definition.yaml
+$ kubectl get cronjobs
+```
+
+## 6. Services
+
+A Service is an abstraction which defines a logical set of Pods and a policy by which to access them (sometimes this pattern is called a micro-service). The set of Pods targeted by a Service is usually determined by a selector. A Service in Kubernetes is a REST object, similar to a Pod. Like all of the REST objects, you can POST a Service definition to the API server to create a new instance.
+
+<br>
+<p align="center">
+  <img src="images/services.png" width="50%">
+</p>
+<br>
+
+`TargetPort`: Port on a specific port where the services is forwarded to
+
+`Port`: The port of the service (Like a VM in a node)
+
+`NodePort`: The port on a node (Valid Ports: 30000-32767)
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+spec:
+  type: NodePort
+  ports:
+    - targetPort: 80
+      port: 80
+      nodePort: 30008
+  selector:
+    app: myapp
+    type: front-end
+```
+### 6.1 Cluster IP
+
+To target a pool of pods (More than 1)
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: back-end
+spec:
+  type: ClusterIP
+  ports:
+    - targetPort: 80
+      port: 80
+  selector:
+    app: myapp
+    type: back-end
+```
+
+### 6.2 Ingress
+
+Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster. Traffic routing is controlled by rules defined on the Ingress resource. An Ingress may be configured to give Services externally-reachable URLs, load balance traffic, terminate SSL / TLS, and offer name-based virtual hosting. An Ingress controller is responsible for fulfilling the Ingress, usually with a load balancer, though it may also configure your edge router or additional frontends to help handle the traffic.
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx-ingress-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: nginx-ingress
+  template:
+    metaData:
+      labels:
+        name: nginx-ingress
+    spec:
+      containers:
+        - name: nginx-ingress-controller
+          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.21.0
+      args:
+        - /nginx-ingress-controller
+        - --configmap=$(POD_NAMESPACE)/nginx-configuration
+      env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef: 
+              fieldPath: metadata.namespace
+      ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+```
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-ingress
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: https
+  selector:
+    name: nginx-ingress
+```
+
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-configuration
+```
+
+```
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-ingress-serviceaccount
+```
+
+```
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-wear-watch
+spec: 
+  rules: 
+  - https:
+    paths:
+      - path: /wear
+        backend:
+          serviceName: wear-service
+          servicePort: 80
+      - path: /watch
+        backend:
+          serviceName: watch-service
+          servicePort: 80
+```
+
+### 6.3 Network Policies
+
+Network policies are implemented by the network plugin. To use network policies, you must be using a networking solution which supports NetworkPolicy. Creating a NetworkPolicy resource without a controller that implements it will have no effect.
+
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-policy
+spec: 
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          name: api-pod
+      namespaceSelector:
+        matchLabels:
+          name: prod
+    - ipBlock:
+        cidr: 192.168.5.10/32
+    ports:
+    - protocol: TCP
+      port: 3306
 ```
